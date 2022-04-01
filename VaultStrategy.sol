@@ -484,9 +484,8 @@ contract VaultStrategy is Ownable, ReentrancyGuard, Pausable {
     }
 
     //*=============== Extra Test Functions ===============*//
-    function numBurnTokens() public view returns(uint256) {
-        uint256 length = burnTokens.length;
-        return length;
+    function numBurnTokens() public view returns(uint256 length) {
+        length = burnTokens.length;
     }
 
 }
