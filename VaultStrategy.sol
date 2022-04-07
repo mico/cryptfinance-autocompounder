@@ -57,8 +57,10 @@ contract VaultStrategy is Ownable, ReentrancyGuard, Pausable {
     BurnTokenInfo[] public burnTokens;
     uint256 public totalBurnTokenWghts;
 
-    //Misc variables.
+    //Shares variables.
     uint256 public sharesTotal = 0;
+    
+    //Vault status variables.
     bool public initialized;
     bool public emergencyWithdrawn;
 
@@ -415,7 +417,7 @@ contract VaultStrategy is Ownable, ReentrancyGuard, Pausable {
         address _token
     ) public virtual nonReentrant whenNotPaused {
         uint256 amount = IERC20(_token).balanceOf(address(this));
-        //Check conditions on endpoints not being either of the pool tokens.
+        //Check conditions on the path starting point not being either of the pool tokens.
         if (amount > 0 && _token != address(earnToken) && _token != address(stakeToken)) {            
             _safeSwap(amount, _token, address(earnToken), address(this), true);
             emit TokenToEarn(_token);
@@ -433,7 +435,7 @@ contract VaultStrategy is Ownable, ReentrancyGuard, Pausable {
 
         //If no tokens to burn then send all to the bountyHunter.
         if (burnTokens.length == 0) {
-            bountyReward  = _bountyHunter == address(0) ? 0 : performanceFee;
+            bountyReward = _bountyHunter == address(0) ? 0 : performanceFee;
             platformFee = 0;
         }
 
@@ -458,7 +460,7 @@ contract VaultStrategy is Ownable, ReentrancyGuard, Pausable {
         for (uint i=0; i<burnTokens.length; i++) {
 
             //Extract burn token info.
-            BurnTokenInfo storage burnToken = burnTokens[i];
+            BurnTokenInfo memory burnToken = burnTokens[i];
             burnAmount = (_amount * burnToken.weight) / totalBurnTokenWghts;
 
             //Either send or swap the burn token to the associated burn address.
