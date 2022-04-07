@@ -14,7 +14,6 @@ import './dependencies/EnumerableSet.sol';
 
 import './interfaces/IFarm.sol';
 import './interfaces/IVaultStrategy.sol';
-import './interfaces/IWNATIVE.sol';
 
 contract StrategyManager is Ownable, ReentrancyGuard {
 

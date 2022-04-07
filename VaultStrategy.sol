@@ -272,7 +272,7 @@ contract VaultStrategy is Ownable, ReentrancyGuard, Pausable {
         if (address(token0) == address(0)) {
             //If the stake and earn token are different the swap between the two.
             if (stakeToken != earnToken) {
-                _safeSwap(earnAmount, swapPath[address(earnToken)][address(stakeToken)], address(this), false);
+                _safeSwap(earnAmount, address(earnToken), address(stakeToken), address(this), false);
             }
             _farm();
             return bountyReward;
@@ -280,10 +280,10 @@ contract VaultStrategy is Ownable, ReentrancyGuard, Pausable {
 
         //Perform LP stake strategy...
         if (token0 != earnToken) {
-            _safeSwap(earnAmount / 2, swapPath[address(earnToken)][address(token0)], address(this), false);
+            _safeSwap(earnAmount / 2, address(earnToken), address(token0), address(this), false);
         }
         if (token1 != earnToken) {
-            _safeSwap(earnAmount / 2, swapPath[address(earnToken)][address(token1)], address(this), false);
+            _safeSwap(earnAmount / 2, address(earnToken), address(token1), address(this), false);
         }
 
         //Add liquidiy it the chosen amount is >0. - This is where we can have leftover bits.
@@ -390,18 +390,22 @@ contract VaultStrategy is Ownable, ReentrancyGuard, Pausable {
     //safeSwap function which increases the allowance & supports fees on transferring tokens.
     function _safeSwap(
         uint256 _amountIn,
-        address[] memory _path,
+        address _pathIn,
+        address _pathOut,
         address _to,
         bool _ignoreErrors
     ) internal virtual {
-        if (_amountIn>0) {
-            IERC20(_path[0]).safeIncreaseAllowance(address(swapRouter), _amountIn);
+
+        //Only need to check path length as all other checks are either done through _setSwapPath or the enclosing function.
+        address[] memory path = swapPath[_pathIn][_pathOut];
+        if ((_amountIn>0) && (path.length>1)) {
+            IERC20(path[0]).safeIncreaseAllowance(address(swapRouter), _amountIn);
             if (_ignoreErrors) {
                 try
-                    swapRouter.swapExactTokensForTokensSupportingFeeOnTransferTokens(_amountIn, 0, _path, _to, block.timestamp+40)
+                    swapRouter.swapExactTokensForTokensSupportingFeeOnTransferTokens(_amountIn, 0, path, _to, block.timestamp+40)
                 {} catch {}
             } else {
-                swapRouter.swapExactTokensForTokensSupportingFeeOnTransferTokens(_amountIn, 0, _path, _to, block.timestamp+40);
+                swapRouter.swapExactTokensForTokensSupportingFeeOnTransferTokens(_amountIn, 0, path, _to, block.timestamp+40);
             }
         }
     }
@@ -411,23 +415,9 @@ contract VaultStrategy is Ownable, ReentrancyGuard, Pausable {
         address _token
     ) public virtual nonReentrant whenNotPaused {
         uint256 amount = IERC20(_token).balanceOf(address(this));
-        if (amount > 0 && _token != address(earnToken) && _token != address(stakeToken)) {
-            address[] memory path = swapPath[_token][address(earnToken)];
-            if (path.length == 0) {
-                if (_token == WNATIVE) {
-                    path = new address[](2);
-                    path[0] = _token;
-                    path[1] = address(earnToken);
-                } else {
-                    path = new address[](3);
-                    path[0] = _token;
-                    path[1] = WNATIVE;
-                    path[2] = address(earnToken);
-                }
-            }
-            if (path[0] != address(earnToken) && path[0] != address(stakeToken)) {
-                _safeSwap(amount, path, address(this), true);
-            }
+        //Check conditions on endpoints not being either of the pool tokens.
+        if (amount > 0 && _token != address(earnToken) && _token != address(stakeToken)) {            
+            _safeSwap(amount, _token, address(earnToken), address(this), true);
             emit TokenToEarn(_token);
         }
     }
@@ -472,12 +462,12 @@ contract VaultStrategy is Ownable, ReentrancyGuard, Pausable {
             burnAmount = (_amount * burnToken.weight) / totalBurnTokenWghts;
 
             //Either send or swap the burn token to the associated burn address.
-            if (burnAmount==0) { 
-                continue; 
-            } else if (burnToken.token == earnToken) {
-                earnToken.safeTransfer(burnToken.burnAddress, burnAmount);
-            } else {
-                _safeSwap(burnAmount, swapPath[address(earnToken)][address(burnToken.token)], burnToken.burnAddress, false);
+            if (burnAmount>0) { 
+                if (burnToken.token == earnToken) {
+                    earnToken.safeTransfer(burnToken.burnAddress, burnAmount);
+                } else {
+                    _safeSwap(burnAmount, address(earnToken), address(burnToken.token), burnToken.burnAddress, true);
+                }
             }
             
         }
