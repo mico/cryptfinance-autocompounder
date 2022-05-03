@@ -15,6 +15,15 @@ import './dependencies/EnumerableSet.sol';
 import './interfaces/IFarm.sol';
 import './interfaces/IVaultStrategy.sol';
 
+/**
+ *       ___      ___    __   __     ___    _____               ___     ___     _  _      ___     _  _      ___      ___   
+ *      / __|    | _ \   \ \ / /    | _ \  |_   _|             | __|   |_ _|   | \| |    /   \   | \| |    / __|    | __|  
+ *     | (__     |   /    \ V /     |  _/    | |       _       | _|     | |    | .` |    | - |   | .` |   | (__     | _|   
+ *      \___|    |_|_\    _|_|_    _|_|_    _|_|_    _(_)_    _|_|_    |___|   |_|\_|    |_|_|   |_|\_|    \___|    |___|  
+ *    _|"""""| _|"""""| _| """ | _| """ | _|"""""| _|"""""| _| """ | _|"""""| _|"""""| _|"""""| _|"""""| _|"""""| _|"""""| 
+ *    "`-0-0-' "`-0-0-' "`-0-0-' "`-0-0-' "`-0-0-' "`-0-0-' "`-0-0-' "`-0-0-' "`-0-0-' "`-0-0-' "`-0-0-' "`-0-0-' "`-0-0-' 
+ */
+
 contract StrategyManager is Ownable, ReentrancyGuard {
 
     using SafeERC20 for IERC20;
@@ -304,6 +313,13 @@ contract StrategyManager is Ownable, ReentrancyGuard {
     //Earn with all fees going towards the protocol.
     function _protocolEarn(IVaultStrategy _strategy) internal {
         try _strategy.earn(address(0)) {} catch {} 
+    }
+
+    //TVL helper function.
+    function vaultStakedTokens(uint256 _pid) public view returns (uint256) {
+        PoolInfo memory pool = poolInfo[_pid];
+        IVaultStrategy strategy = pool.strategy;
+        return strategy.totalStakeTokens();
     }
 
 }
